@@ -160,10 +160,7 @@ def get_watched_shows(shows: List[Show]) -> Optional[List[PlexWatchedSeries]]:
 
     for show in shows:
         try:
-            anilist_id = None
-            match = re.search(r"me\.sachaw\.agents\.anilist://([0-9]+)", show.guid)
-            if match:
-                anilist_id = int(match.group(1))
+            anilist_id = get_anilist_id(show.guid)
 
             if hasattr(show, "seasons"):
                 show_seasons = show.seasons()
@@ -255,6 +252,14 @@ def get_watched_shows(shows: List[Show]) -> Optional[List[PlexWatchedSeries]]:
         return None
     else:
         return watched_series
+
+
+def get_anilist_id(guid: str):
+    anilist_id = None
+    match = re.search(r"me\.sachaw\.agents\.anilist://([0-9]+)", guid)
+    if match:
+        anilist_id = int(match.group(1))
+    return anilist_id
 
 
 def get_watched_episodes_for_show_season(season: Season) -> int:

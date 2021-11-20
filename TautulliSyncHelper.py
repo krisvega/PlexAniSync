@@ -1,3 +1,4 @@
+import argparse
 import configparser
 import logging
 import os
@@ -9,6 +10,7 @@ import coloredlogs
 from custom_mappings import read_custom_mappings
 import anilist
 import plexmodule
+from plexmodule import PlexSeason, PlexWatchedSeries, get_anilist_id
 import graphql
 
 __version__ = "1.3.16"
@@ -22,9 +24,6 @@ coloredlogs.install(fmt="%(asctime)s %(message)s", logger=logger)
 # libraries
 # coloredlogs.install(level='DEBUG')
 
-## Settings section ##
-
-
 def read_settings(settings_file) -> configparser.ConfigParser:
     if not os.path.isfile(settings_file):
         logger.critical(f"[CONFIG] Settings file file not found: {settings_file}")
@@ -34,19 +33,46 @@ def read_settings(settings_file) -> configparser.ConfigParser:
     return settings
 
 
-SETTINGS_FILE = os.getenv("SETTINGS_FILE") or "settings.ini"
+def parse_show_from_argline():
+    global SETTINGS_FILE
+    parser = argparse.ArgumentParser(description="Sync Plex with Anilist")
+    parser.add_argument("--title", required=True, help="Title of the show, {{show_name}}")
+    parser.add_argument("--season", type=int, required=True, help="Season, {{season}}")
+    parser.add_argument("--episode", type=int, required=True, help="Episode number, {{episode_num}}")
+    parser.add_argument("--year", type=int, required=True, help="Year when the show aired, {{year}}")
+    parser.add_argument("--guid", help="guid of the entry, needed for Anilist agent, {{guid}}")
+    parser.add_argument("--settings-file", help="Location of the custom settings file")
 
-if len(sys.argv) < 2:
+    args = parser.parse_args()
+    if args.settings_file:
+        SETTINGS_FILE = args.settings_file
+
+    anilist_id = None
+    if args.guid:
+        anilist_id = get_anilist_id(args.guid)
+    plex_season = PlexSeason(args.season, args.episode)
+    return PlexWatchedSeries(args.title, args.title, args.title, args.year, [plex_season], anilist_id)
+
+
+SETTINGS_FILE = os.getenv("SETTINGS_FILE") or "settings.ini"
+ARGLEN = len(sys.argv)
+
+if ARGLEN < 2:
     logger.error("No show title specified in arguments so cancelling updating")
     sys.exit(1)
-elif len(sys.argv) > 2:
+elif ARGLEN == 2:
+    show_title = sys.argv[1]
+elif ARGLEN == 3:
     SETTINGS_FILE = sys.argv[1]
     logger.warning(f"Found settings file parameter and using: {SETTINGS_FILE}")
     # If we have custom settings file parameter use different arg index to
     # keep legacy method intact
     show_title = sys.argv[2]
 else:
-    show_title = sys.argv[1]
+    # new format with lots of info by Tautulli
+    plex_show = parse_show_from_argline()
+    show_title = plex_show.title
+
 
 settings = read_settings(SETTINGS_FILE)
 anilist_settings = settings["ANILIST"]
@@ -94,21 +120,24 @@ def start():
     elif not anilist_series:
         logger.error("No items found on your AniList list to process")
     else:
-        # Wait a few a seconds to make sure Plex has processed watched states
-        sleep(5.0)
-        plexmodule.plex_settings = plex_settings
-        plex_anime_series = plexmodule.get_anime_shows_filter(show_title)
-
-        if plex_anime_series is None:
-            logger.error("Found no Plex shows for processing")
-            plex_series_watched = None
+        if plex_show:
+            anilist.match_to_plex(anilist_series, [plex_show])
         else:
-            plex_series_watched = plexmodule.get_watched_shows(plex_anime_series)
+            # Wait a few a seconds to make sure Plex has processed watched states
+            sleep(5.0)
+            plexmodule.plex_settings = plex_settings
+            plex_anime_series = plexmodule.get_anime_shows_filter(show_title)
 
-        if plex_series_watched is None:
-            logger.error("Found no watched shows on Plex for processing")
-        else:
-            anilist.match_to_plex(anilist_series, plex_series_watched)
+            if not plex_anime_series:
+                logger.error("Found no Plex shows for processing")
+                plex_series_watched = None
+            else:
+                plex_series_watched = plexmodule.get_watched_shows(plex_anime_series)
+
+            if not plex_series_watched:
+                logger.error("Found no watched shows on Plex for processing")
+            else:
+                anilist.match_to_plex(anilist_series, plex_series_watched)
 
         logger.info("Plex to AniList sync finished")
 
