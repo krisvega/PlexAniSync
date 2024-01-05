@@ -43,7 +43,7 @@
               "properties": {
                 "season": {
                   "type": "integer",
-                  "minimum": 1
+                  "minimum": 0
                 },
                 "anilist-id": {
                   "type": "integer",
