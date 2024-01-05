@@ -51,6 +51,9 @@
                 },
                 "start": {
                   "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
                 }
               },
               "additionalProperties": false

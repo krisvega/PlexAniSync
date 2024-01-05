@@ -24,6 +24,7 @@ class AnilistCustomMapping:
     season: int
     anime_id: int
     start: int
+    offset: int
 
 # Some classes for parsing YAML with line numbers
 
@@ -148,11 +149,12 @@ def __add_mappings(custom_mappings, mapping_location, file_mappings):
             season = file_season['season']
             anilist_id = file_season['anilist-id']
             start = file_season.get('start', 1)
+            offset = file_season.get('offset', 0)
             logger.debug(
                 f"Adding custom mapping from {mapping_location} "
                 f"| title: {series_title} | season: {season} | anilist id: {anilist_id}"
             )
-            series_mappings.append(AnilistCustomMapping(season, anilist_id, start))
+            series_mappings.append(AnilistCustomMapping(season, anilist_id, start, offset))
         if synonyms:
             logger.debug(f"{series_title} has synonyms: {synonyms}")
         for title in [series_title] + synonyms:

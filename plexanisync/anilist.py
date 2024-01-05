@@ -71,6 +71,7 @@ class Anilist:
                     if season_mappings and len(season_mappings) == 1:
                         matched_id = season_mappings[0].anime_id
                         mapped_start = season_mappings[0].start
+                        offset = season_mappings[0].offset
 
                         custom_mapped_seasons.append(plex_season.season_number)
                         match = next(
@@ -82,7 +83,7 @@ class Anilist:
                             # Create first match dict for this anilist id
                             anilist_matches.append(AnilistMatch(
                                 matched_id,
-                                plex_season.watched_episodes - mapped_start + 1,
+                                plex_season.watched_episodes + offset - mapped_start + 1,
                                 plex_season.last_episode,
                                 [plex_season.season_number],
                                 [plex_season.rating]
@@ -91,9 +92,9 @@ class Anilist:
                         # For multiple seasons with the same id
                         # If the start of this season has been mapped use that.
                         if mapped_start != 1:
-                            match.watched_episodes = plex_season.watched_episodes - mapped_start + 1
+                            match.watched_episodes = plex_season.watched_episodes + offset - mapped_start + 1
                         else:
-                            match.watched_episodes += plex_season.watched_episodes
+                            match.watched_episodes += plex_season.watched_episodes + offset
 
                         # TODO support using number of last episode of the last season as a start
                         match.mapped_seasons.append(plex_season.season_number)
@@ -665,7 +666,7 @@ class Anilist:
             if watched_episodes >= mapping.start:
                 episodes_in_season = watched_episodes - mapping.start - total_mapped_episodes + 1
                 total_mapped_episodes += episodes_in_season
-                episodes_in_anilist_entry[mapping.anime_id] = episodes_in_season
+                episodes_in_anilist_entry[mapping.anime_id] = episodes_in_season + mapping.offset
 
         if total_mapped_episodes < watched_episodes:
             logger.warning(
